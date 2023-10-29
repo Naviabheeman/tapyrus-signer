@@ -132,7 +132,7 @@ where
     let federation = params.get_federation_by_block_height(block_height);
 
     let signature = match Vss::aggregate_and_verify_signature(
-        candidate_block,
+        &candidate_block.header.signature_hash(),
         new_signatures,
         &params.pubkey_list(block_height),
         &federation.node_shared_secrets(),
