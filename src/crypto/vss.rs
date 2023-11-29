@@ -140,17 +140,34 @@ impl Vss {
             block.header.signature_hash(),
         );
 
-        let y = shared_keys_for_positive
-            .y
-            .y_coor()
-            .expect("can not get y_coor");
-        let is_positive = jacobi(&Converter::to_vec(&y)) == 1;
-        let (shared_keys, local_sig) = if is_positive {
-            (shared_keys_for_positive, local_sig_for_positive)
-        } else {
-            (shared_keys_for_negative, local_sig_for_negative)
-        };
-        Ok((is_positive, shared_keys, local_sig))
+    pub fn create_local_sig_from_shares_for_xfield(
+        priv_shared_keys: &SharedKeys,
+        index: usize,
+        shared_block_secrets: &BidirectionalSharedSecretMap,
+        xfield: &XField,
+    ) -> Result<(bool, SharedKeys, LocalSig), Error> {
+        let shared_keys_for_positive =
+            Sign::verify_vss_and_construct_key(&shared_block_secrets.for_positive(), &index)?;
+        let local_sig_for_positive = Sign::sign_xfield(
+            &shared_keys_for_positive,
+            &priv_shared_keys,
+            xfield.signature_hash().unwrap(),
+        );
+
+        let shared_keys_for_negative =
+            Sign::verify_vss_and_construct_key(&shared_block_secrets.for_negative(), &index)?;
+        let local_sig_for_negative = Sign::sign_xfield(
+            &shared_keys_for_negative,
+            &priv_shared_keys,
+            xfield.signature_hash()?,
+        );
+        Self::create_local_sig_from_shares(
+            priv_shared_keys,
+            index,
+            shared_block_secrets,
+            &local_sig_for_positive,
+            &local_sig_for_negative,
+        )
     }
 
     pub fn aggregate_and_verify_signature(

@@ -263,22 +263,15 @@ impl Federation {
         self.threshold.is_some() && self.nodevss.is_some()
     }
 
-    pub fn from(pubkey: PublicKey, ser: SerFederation) -> Self {
-        Self::new(
-            pubkey,
-            ser.block_height,
-            ser.threshold,
-            ser.nodevss,
-            ser.aggregated_public_key,
-        )
-    }
-
-    pub fn to_ser(self) -> SerFederation {
-        SerFederation {
-            block_height: self.block_height,
-            threshold: self.threshold,
-            nodevss: self.nodevss,
-            aggregated_public_key: self.aggregated_public_key,
+    pub fn verify_signature(&self) -> Result<(), Error> {
+        if let Some(signature) = &self.signature {
+            let hash = self.xfield.signature_hash()?;
+            let verification_key = self.verification_key.unwrap();
+            let bytes: Vec<u8> = verification_key.key.serialize_uncompressed().to_vec();
+            let point = GE::from_bytes(&bytes[1..]).expect("failed to convert pubkey to point");
+            signature.verify(&hash[..], &point)
+        } else {
+            Err(Error::UnauthorizedFederationChange(self.block_height))
         }
     }
 }
